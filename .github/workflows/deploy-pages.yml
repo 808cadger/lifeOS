@@ -1,0 +1,33 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate critical files
+        run: |
+          for f in index.html manifest.json sw.js api-client.js app.js notifications.js; do
+            [ -f "$f" ] && echo "✓ $f" || (echo "✗ MISSING: $f" && exit 1)
+          done
+
+      - name: Prepare www
+        run: |
+          mkdir -p www/icons
+          cp index.html manifest.json sw.js offline.html www/
+          cp app.js notifications.js api-client.js avatar-widget.js share-widget.js www/
+          cp icons/*.png www/icons/ 2>/dev/null || true
+
+      - name: Deploy to Codeberg Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./www
+          publish_branch: pages
+          force_orphan: true

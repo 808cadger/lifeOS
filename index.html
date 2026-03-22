@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="application-name" content="LifeOS">
+  <meta name="description" content="Your personal operating system for everyday life — schedule, legal, finance, home, work, all in one place with AI help.">
+  <meta name="share-url" content="https://cadger808.codeberg.page/lifeos">
+  <meta name="apk-url" content="https://codeberg.org/cadger808/lifeos/releases">
+  <meta name="theme-color" content="#4fc3f7">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.anthropic.com; img-src 'self' data:; font-src 'self';">
+  <link rel="manifest" href="./manifest.json">
+  <title>LifeOS — Your Life, Organized</title>
+  <style>
+    /* ── Reset & Base ───────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg:        #0a0e1a;
+      --bg2:       #0d1421;
+      --bg3:       #111827;
+      --card:      #0f1929;
+      --border:    rgba(79,195,247,0.18);
+      --accent:    #4fc3f7;
+      --accent2:   #0288d1;
+      --text:      #e3f2fd;
+      --text2:     #90caf9;
+      --muted:     #546e7a;
+      --red:       #ef5350;
+      --orange:    #ffa726;
+      --green:     #66bb6a;
+      --purple:    #7e57c2;
+      --teal:      #26c6da;
+      --nav-h:     60px;
+      --header-h:  56px;
+      --safe-b:    env(safe-area-inset-bottom, 0px);
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; font-size: 15px; overscroll-behavior: none; }
+
+    /* ── Splash ─────────────────────────────────────── */
+    #splash { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.4s; }
+    .splash-logo { font-size: 52px; margin-bottom: 16px; animation: bobSplash 1.5s ease-in-out infinite; }
+    .splash-title { font-size: 28px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+    .splash-sub { font-size: 13px; color: var(--text2); margin-top: 6px; }
+    @keyframes bobSplash { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+    /* ── App Shell ──────────────────────────────────── */
+    #app { display: flex; flex-direction: column; height: 100vh; }
+    #app.hidden { display: none; }
+
+    /* ── Header ─────────────────────────────────────── */
+    #header { height: var(--header-h); display: flex; align-items: center; padding: 0 16px; gap: 10px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; z-index: 10; }
+    .header-logo { font-size: 22px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+    .header-logo span { color: var(--text2); font-weight: 400; font-size: 14px; margin-left: 6px; }
+    #header-screen-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); text-align: right; }
+
+    /* ── Main content ───────────────────────────────── */
+    #main { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: calc(var(--nav-h) + var(--safe-b) + 8px); -webkit-overflow-scrolling: touch; }
+
+    /* ── Screens ─────────────────────────────────────── */
+    .screen { display: none; padding: 16px; animation: fadeIn 0.22s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Bottom Nav ─────────────────────────────────── */
+    #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b); background: var(--bg2); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-around; z-index: 100; }
+    .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: none; color: var(--muted); cursor: pointer; padding: 8px 0; transition: color 0.15s; min-height: 44px; }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn .nav-icon { font-size: 20px; line-height: 1; }
+    .nav-btn .nav-label { font-size: 10px; font-weight: 500; }
+    #nav-more-btn { position: relative; }
+    #more-menu { position: fixed; bottom: calc(var(--nav-h) + var(--safe-b) + 8px); right: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 8px 0; min-width: 160px; z-index: 200; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    #more-menu.hidden { display: none; }
+    .more-item { display: flex; align-items: center; gap: 12px; padding: 13px 18px; color: var(--text); font-size: 14px; cursor: pointer; transition: background 0.1s; }
+    .more-item:hover { background: rgba(79,195,247,0.08); }
+    .more-item .more-icon { font-size: 18px; width: 22px; text-align: center; }
+
+    /* ── Section labels ─────────────────────────────── */
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+    .section-label.muted { color: var(--muted); opacity: 0.6; }
+
+    /* ── Cards ──────────────────────────────────────── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+
+    /* ── List cards ─────────────────────────────────── */
+    .list-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; transition: border-color 0.15s; }
+    .list-card.overdue { border-left: 3px solid var(--red); }
+    .list-card.urgent  { border-left: 3px solid var(--orange); }
+    .list-card.soon    { border-left: 3px solid var(--accent); }
+    .list-card.ok      { border-left: 3px solid var(--green); }
+    .list-card-left { flex: 1; min-width: 0; }
+    .list-card-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .list-card-title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .list-card-sub { font-size: 12px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .list-card-date { font-size: 11px; color: var(--muted); }
+
+    /* ── Stat cards ─────────────────────────────────── */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center; }
+    .stat-card.blue   { border-top: 2px solid var(--accent); }
+    .stat-card.red    { border-top: 2px solid var(--red); }
+    .stat-card.green  { border-top: 2px solid var(--green); }
+    .stat-card.purple { border-top: 2px solid var(--purple); }
+    .stat-num { font-size: 24px; font-weight: 800; color: var(--text); }
+    .stat-label { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+    /* ── Urgency badges ─────────────────────────────── */
+    .urgency-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+    .urgency-badge.overdue { background: rgba(239,83,80,0.2); color: var(--red); }
+    .urgency-badge.urgent  { background: rgba(255,167,38,0.2); color: var(--orange); }
+    .urgency-badge.soon    { background: rgba(79,195,247,0.2); color: var(--accent); }
+    .urgency-badge.ok      { background: rgba(102,187,106,0.2); color: var(--green); }
+
+    /* ── Event categories ───────────────────────────── */
+    .event-cat { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; text-transform: capitalize; }
+    .cat-work     { background: rgba(79,195,247,0.15); color: var(--accent); }
+    .cat-personal { background: rgba(126,87,194,0.2); color: #b39ddb; }
+    .cat-medical  { background: rgba(239,83,80,0.15); color: var(--red); }
+    .cat-legal    { background: rgba(255,167,38,0.15); color: var(--orange); }
+    .cat-finance  { background: rgba(102,187,106,0.15); color: var(--green); }
+    .cat-home     { background: rgba(255,112,67,0.15); color: #ff8a65; }
+    .cat-other    { background: rgba(84,110,122,0.2); color: var(--muted); }
+
+    /* ── Today screen ───────────────────────────────── */
+    .today-header { margin-bottom: 20px; }
+    #today-greeting { font-size: 22px; font-weight: 800; color: var(--text); }
+    #today-date { font-size: 13px; color: var(--text2); margin-top: 2px; }
+    .alert-row { padding: 10px 14px; border-radius: 10px; margin-bottom: 6px; font-size: 13px; cursor: pointer; transition: opacity 0.15s; }
+    .alert-row:active { opacity: 0.7; }
+    .alert-row.overdue { background: rgba(239,83,80,0.12); color: var(--red); border: 1px solid rgba(239,83,80,0.25); }
+    .alert-row.urgent  { background: rgba(255,167,38,0.12); color: var(--orange); border: 1px solid rgba(255,167,38,0.25); }
+    .empty-alerts { font-size: 13px; color: var(--green); padding: 10px 0; }
+    .today-event { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .today-event:last-child { border-bottom: none; }
+    .event-time { font-size: 12px; color: var(--muted); min-width: 54px; }
+    .event-title { flex: 1; font-size: 13px; font-weight: 500; }
+    .empty-state-sm { font-size: 13px; color: var(--muted); padding: 12px 0; }
+    .link-btn { background: none; border: none; color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline; padding: 0; }
+
+    /* ── Empty states ───────────────────────────────── */
+    .empty-state { text-align: center; padding: 48px 24px; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* ── FAB ─────────────────────────────────────────── */
+    .fab { position: fixed; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); right: 16px; width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: var(--bg); border: none; font-size: 26px; font-weight: 400; cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(79,195,247,0.4); z-index: 50; transition: transform 0.15s, box-shadow 0.15s; }
+    .fab:active { transform: scale(0.92); }
+    .screen.active ~ .fab,
+    .fab.visible { display: flex; }
+
+    /* ── Finance ─────────────────────────────────────── */
+    .finance-tabs { display: flex; gap: 0; background: var(--bg3); border-radius: 10px; padding: 3px; margin-bottom: 16px; }
+    .finance-tab { flex: 1; padding: 8px; background: none; border: none; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: background 0.15s, color 0.15s; }
+    .finance-tab.active { background: var(--bg2); color: var(--accent); }
+    .finance-panel { display: none; }
+    .finance-panel.active { display: block; }
+    .budget-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: var(--text2); }
+    .budget-bar-bg { height: 8px; background: var(--bg3); border-radius: 4px; margin-bottom: 6px; overflow: hidden; }
+    .budget-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .amount-tag { font-size: 13px; font-weight: 700; color: var(--green); }
+    .paid-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(102,187,106,0.15); color: var(--green); }
+    .badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px; background: rgba(79,195,247,0.15); color: var(--accent); vertical-align: middle; margin-left: 4px; }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    .delete-btn { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 6px; transition: color 0.15s, background 0.15s; }
+    .delete-btn:hover { color: var(--red); background: rgba(239,83,80,0.1); }
+    .icon-btn { background: none; border: 1px solid var(--border); color: var(--text2); font-size: 13px; cursor: pointer; padding: 4px 9px; border-radius: 8px; transition: background 0.15s; }
+    .icon-btn:hover { background: rgba(79,195,247,0.1); }
+
+    /* ── Modals ──────────────────────────────────────── */
+    #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 500; display: flex; align-items: flex-end; padding-bottom: var(--safe-b); }
+    #modal-overlay.hidden { display: none; }
+    .modal { width: 100%; max-width: 480px; margin: 0 auto; background: var(--bg2); border-radius: 20px 20px 0 0; padding: 8px 20px 24px; display: none; max-height: 90vh; overflow-y: auto; animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+    .modal.active { display: block; }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 16px; }
+    .modal-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 18px; }
+    .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; padding: 4px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .field input, .field select, .field textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 14px; padding: 11px 13px; outline: none; -webkit-appearance: none; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+    .field textarea { min-height: 72px; resize: vertical; font-family: inherit; }
+    .field select option { background: var(--bg2); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .check-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 14px; color: var(--text2); }
+    .check-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+    .btn-primary { width: 100%; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 6px; transition: opacity 0.15s; }
+    .btn-primary:active { opacity: 0.85; }
+    .btn-secondary { width: 100%; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+
+    /* ── Settings ─────────────────────────────────────── */
+    .settings-section { margin-bottom: 24px; }
+    .settings-section-title { font-size: 13px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+    .settings-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 10px; }
+    .settings-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .settings-row:last-child { margin-bottom: 0; }
+
+    /* ── Accounts ─────────────────────────────────────── */
+    .account-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+    .account-icon { font-size: 28px; margin-bottom: 8px; }
+    .account-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .account-status { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
+
+    /* ── Toast ───────────────────────────────────────── */
+    .toast { position: fixed; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 24px; z-index: 1000; opacity: 0; transition: opacity 0.2s, transform 0.2s; white-space: nowrap; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: var(--red); color: var(--red); }
+
+    /* ── Screen-specific headers ────────────────────── */
+    .screen-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .screen-title { font-size: 22px; font-weight: 800; }
+    .screen-title.blue   { color: var(--accent); }
+    .screen-title.red    { color: var(--red); }
+    .screen-title.green  { color: var(--green); }
+    .screen-title.orange { color: var(--orange); }
+    .screen-title.purple { color: var(--purple); }
+    .screen-title.teal   { color: var(--teal); }
+
+    /* ── Responsive ─────────────────────────────────── */
+    @media (min-width: 600px) {
+      #main { max-width: 600px; margin: 0 auto; }
+      #bottom-nav { max-width: 600px; left: 50%; transform: translateX(-50%); }
+      .modal { border-radius: 20px; margin: auto; }
+      #modal-overlay { align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Splash -->
+<div id="splash">
+  <div class="splash-logo">🧠</div>
+  <div class="splash-title">LifeOS</div>
+  <div class="splash-sub">Your life, organized</div>
+</div>
+
+<!-- App -->
+<div id="app">
+
+  <!-- Header -->
+  <header id="header">
+    <div class="header-logo">Life<span style="color:var(--accent);font-weight:800">OS</span></div>
+    <div id="header-screen-title"></div>
+  </header>
+
+  <!-- Screens -->
+  <main id="main">
+
+    <!-- TODAY -->
+    <section class="screen" id="screen-today">
+      <div class="today-header">
+        <div id="today-greeting">Good morning</div>
+        <div id="today-date"></div>
+      </div>
+      <div id="today-stats" class="stats-row"></div>
+      <div class="section-label">Alerts</div>
+      <div id="today-alerts"></div>
+      <div class="section-label">Today's Schedule</div>
+      <div id="today-schedule"></div>
+    </section>
+
+    <!-- SCHEDULE -->
+    <section class="screen" id="screen-schedule">
+      <div class="screen-header">
+        <div class="screen-title blue">📅 Schedule</div>
+      </div>
+      <div id="schedule-list"></div>
+    </section>
+
+    <!-- LEGAL -->
+    <section class="screen" id="screen-legal">
+      <div class="screen-header">
+        <div class="screen-title red">⚖️ Legal</div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Track court dates, lease renewals, contracts, and any deadline that matters.</p>
+      <div id="legal-list"></div>
+    </section>
+
+    <!-- FINANCE -->
+    <section class="screen" id="screen-finance">
+      <div class="screen-header">
+        <div class="screen-title green">💰 Finance</div>
+      </div>
+      <div class="finance-tabs">
+        <button class="finance-tab active" onclick="switchFinanceTab('budget')">Budget</button>
+        <button class="finance-tab" onclick="switchFinanceTab('bills')">Bills</button>
+        <button class="finance-tab" onclick="switchFinanceTab('expenses')">Expenses</button>
+      </div>
+      <div id="finance-panel-budget" class="finance-panel active">
+        <div class="card">
+          <div class="field">
+            <label>Monthly Income ($)</label>
+            <input type="number" id="budget-income-input" placeholder="e.g. 3500" min="0">
+          </div>
+          <div id="finance-budget"></div>
+        </div>
+      </div>
+      <div id="finance-panel-bills" class="finance-panel">
+        <div id="finance-bills"></div>
+      </div>
+      <div id="finance-panel-expenses" class="finance-panel">
+        <div id="finance-expenses"></div>
+      </div>
+    </section>
+
+    <!-- HOME -->
+    <section class="screen" id="screen-home">
+      <div class="screen-header">
+        <div class="screen-title orange">🏡 Home</div>
+      </div>
+      <div class="section-label">Maintenance</div>
+      <div id="home-maintenance"></div>
+      <div class="section-label">Repair Log</div>
+      <div id="home-repairs"></div>
+    </section>
+
+    <!-- WORK -->
+    <section class="screen" id="screen-work">
+      <div class="screen-header">
+        <div class="screen-title purple">💼 Work</div>
+      </div>
+      <div id="work-rate-display" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+      <div id="work-summary" class="stats-row"></div>
+      <div class="section-label">Shifts</div>
+      <div id="work-list"></div>
+    </section>
+
+    <!-- ACCOUNTS -->
+    <section class="screen" id="screen-accounts">
+      <div class="screen-header">
+        <div class="screen-title teal">🔗 Accounts</div>
+      </div>
+      <div class="account-card">
+        <div class="account-icon">🔔</div>
+        <div class="account-title">Notifications</div>
+        <div class="account-status" id="account-notif-status">Checking...</div>
+        <button class="btn-primary" id="account-notif-btn">Enable Notifications</button>
+      </div>
+      <div class="account-card">
+        <div class="account-icon">📅</div>
+        <div class="account-title">Google Calendar</div>
+        <div class="account-status" id="account-gcal-status">Not connected</div>
+        <div class="field">
+          <label>iCal URL (from Google Calendar settings)</label>
+          <input type="url" id="account-gcal-input" placeholder="https://calendar.google.com/calendar/ical/...">
+        </div>
+        <button class="btn-primary" id="account-gcal-save">Save Calendar URL</button>
+      </div>
+      <div class="account-card" style="opacity:0.5">
+        <div class="account-icon">🏦</div>
+        <div class="account-title">Bank / Finance <span class="badge">Coming Soon</span></div>
+        <div class="account-status">Manual tracking available in Finance tab</div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="screen" id="screen-settings">
+      <div class="screen-header">
+        <div class="screen-title" style="color:var(--text2)">⚙️ Settings</div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Profile</div>
+        <div class="settings-card">
+          <div class="field">
+            <label>Your Name</label>
+            <input type="text" id="settings-name" placeholder="e.g. Chris">
+          </div>
+          <div class="field">
+            <label>Claude API Key</label>
+            <input type="password" id="settings-apikey" placeholder="sk-ant-...">
+            <div style="font-size:11px;color:var(--muted);margin-top:5px">Get a free key at console.anthropic.com — powers the AI assistant</div>
+          </div>
+          <button class="btn-primary" id="settings-save-btn">Save Settings</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">About</div>
+        <div class="settings-card">
+          <div style="font-size:13px;color:var(--text2);line-height:1.7">
+            <strong style="color:var(--text)">LifeOS v1.0</strong><br>
+            Your personal operating system for everyday life.<br>
+            All data stored locally on your device — nothing sent to servers.<br><br>
+            <span style="color:var(--muted)">Built by cadger808 · Powered by Claude AI</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav id="bottom-nav">
+    <button class="nav-btn" data-screen="today">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Today</span>
+    </button>
+    <button class="nav-btn" data-screen="schedule">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">Schedule</span>
+    </button>
+    <button class="nav-btn" data-screen="legal">
+      <span class="nav-icon">⚖️</span>
+      <span class="nav-label">Legal</span>
+    </button>
+    <button class="nav-btn" data-screen="finance">
+      <span class="nav-icon">💰</span>
+      <span class="nav-label">Finance</span>
+    </button>
+    <button class="nav-btn" data-screen="home">
+      <span class="nav-icon">🏡</span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-btn" id="nav-more-btn">
+      <span class="nav-icon">⋯</span>
+      <span class="nav-label">More</span>
+    </button>
+  </nav>
+
+  <!-- More Menu -->
+  <div id="more-menu" class="hidden">
+    <div class="more-item" data-screen="work"><span class="more-icon">💼</span>Work</div>
+    <div class="more-item" data-screen="accounts"><span class="more-icon">🔗</span>Accounts</div>
+    <div class="more-item" data-screen="settings"><span class="more-icon">⚙️</span>Settings</div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- FABs (one per screen, shown via screen active state) -->
+<button class="fab" id="fab-schedule" data-modal="modal-add-event"   style="display:none">+</button>
+<button class="fab" id="fab-legal"    data-modal="modal-add-legal"   style="display:none">+</button>
+<button class="fab" id="fab-finance"  data-modal="modal-add-finance-choice" style="display:none">+</button>
+<button class="fab" id="fab-home"     data-modal="modal-add-home-choice" style="display:none">+</button>
+<button class="fab" id="fab-work"     data-modal="modal-add-shift"   style="display:none">+</button>
+
+<!-- MODALS -->
+<div id="modal-overlay" class="hidden">
+
+  <!-- Add Event -->
+  <div class="modal" id="modal-add-event">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Add Event</div>
+    <form id="form-add-event">
+      <div class="field"><label>Title</label><input type="text" name="title" placeholder="e.g. Doctor appointment" required maxlength="80"></div>
+      <div class="field-row">
+        <div class="field"><label>Date</label><input type="date" name="date" required></div>
+        <div class="field"><label>Time</label><input type="time" name="time"></div>
+      </div>
+      <div class="field"><label>Category</label>
+        <select name="category">
+          <option value="personal">Personal</option>
+          <option value="work">Work</option>
+          <option value="medical">Medical</option>
+          <option value="legal">Legal</option>
+          <option value="finance">Finance</option>
+          <option value="home">Home</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Add Event</button>
+    </form>
+  </div>
+
+  <!-- Add Legal Deadline -->
+  <div class="modal" id="modal-add-legal">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Add Legal Deadline</div>
+    <form id="form-add-legal">
+      <div class="field"><label>Title</label><input type="text" name="title" placeholder="e.g. Court filing due" required maxlength="80"></div>
+      <div class="field"><label>Due Date</label><input type="date" name="dueDate" required></div>
+      <div class="field"><label>Type</label>
+        <select name="type">
+          <option>Court Date</option>
+          <option>Filing Deadline</option>
+          <option>Lease Renewal</option>
+          <option>Contract</option>
+          <option>Government</option>
+          <option>Insurance</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Notes (optional)</label><textarea name="notes" placeholder="Any important details..." maxlength="300"></textarea></div>
+      <button type="submit" class="btn-primary">Add Deadline</button>
+    </form>
+  </div>
+
+  <!-- Finance choice -->
+  <div class="modal" id="modal-add-finance-choice">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Add to Finance</div>
+    <button class="btn-primary" onclick="switchModal('modal-add-bill')">💵 Add Bill</button>
+    <button class="btn-secondary" onclick="switchModal('modal-add-expense')">🧾 Log Expense</button>
+  </div>
+
+  <!-- Add Bill -->
+  <div class="modal" id="modal-add-bill">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Add Bill</div>
+    <form id="form-add-bill">
+      <div class="field"><label>Bill Name</label><input type="text" name="title" placeholder="e.g. Rent, Electric, Internet" required maxlength="60"></div>
+      <div class="field-row">
+        <div class="field"><label>Amount ($)</label><input type="number" name="amount" placeholder="0.00" min="0" step="0.01" required></div>
+        <div class="field"><label>Due Date</label><input type="date" name="dueDate" required></div>
+      </div>
+      <div class="check-row"><input type="checkbox" name="recurring"><span>Recurring monthly</span></div>
+      <button type="submit" class="btn-primary">Add Bill</button>
+    </form>
+  </div>
+
+  <!-- Add Expense -->
+  <div class="modal" id="modal-add-expense">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Log Expense</div>
+    <form id="form-add-expense">
+      <div class="field"><label>Description</label><input type="text" name="title" placeholder="e.g. Groceries, Gas" required maxlength="60"></div>
+      <div class="field-row">
+        <div class="field"><label>Amount ($)</label><input type="number" name="amount" placeholder="0.00" min="0" step="0.01" required></div>
+        <div class="field"><label>Date</label><input type="date" name="date"></div>
+      </div>
+      <div class="field"><label>Category</label>
+        <select name="category">
+          <option>Food</option><option>Transport</option><option>Housing</option>
+          <option>Utilities</option><option>Healthcare</option><option>Entertainment</option>
+          <option>Clothing</option><option>Education</option><option>Other</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Log Expense</button>
+    </form>
+  </div>
+
+  <!-- Home choice -->
+  <div class="modal" id="modal-add-home-choice">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Add to Home</div>
+    <button class="btn-primary" onclick="switchModal('modal-add-maint')">🔧 Add Maintenance Item</button>
+    <button class="btn-secondary" onclick="switchModal('modal-add-repair')">🛠 Log Repair</button>
+  </div>
+
+  <!-- Add Maintenance -->
+  <div class="modal" id="modal-add-maint">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Add Maintenance</div>
+    <form id="form-add-maint">
+      <div class="field"><label>Item</label><input type="text" name="title" placeholder="e.g. HVAC filter, Smoke detectors" required maxlength="60"></div>
+      <div class="field-row">
+        <div class="field"><label>Every (days)</label><input type="number" name="intervalDays" placeholder="90" min="1"></div>
+        <div class="field"><label>Last Done</label><input type="date" name="lastDone"></div>
+      </div>
+      <button type="submit" class="btn-primary">Add Item</button>
+    </form>
+  </div>
+
+  <!-- Add Repair -->
+  <div class="modal" id="modal-add-repair">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Log Repair</div>
+    <form id="form-add-repair">
+      <div class="field"><label>Description</label><input type="text" name="title" placeholder="e.g. Fixed leaky faucet" required maxlength="80"></div>
+      <div class="field-row">
+        <div class="field"><label>Date</label><input type="date" name="date"></div>
+        <div class="field"><label>Cost ($)</label><input type="number" name="cost" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea name="notes" placeholder="Who did the work, what was fixed..." maxlength="200"></textarea></div>
+      <button type="submit" class="btn-primary">Log Repair</button>
+    </form>
+  </div>
+
+  <!-- Add Shift -->
+  <div class="modal" id="modal-add-shift">
+    <div class="modal-handle"></div>
+    <button class="modal-close">✕</button>
+    <div class="modal-title">Log Shift</div>
+    <form id="form-add-shift">
+      <div class="field"><label>Date</label><input type="date" name="date" required></div>
+      <div class="field-row">
+        <div class="field"><label>Start Time</label><input type="time" name="startTime"></div>
+        <div class="field"><label>End Time</label><input type="time" name="endTime"></div>
+      </div>
+      <div class="field"><label>Hourly Rate ($) — saves for future</label><input type="number" name="rate" placeholder="e.g. 18.50" min="0" step="0.01"></div>
+      <div class="field"><label>Notes (optional)</label><input type="text" name="notes" placeholder="e.g. Overtime, location" maxlength="60"></div>
+      <button type="submit" class="btn-primary">Log Shift</button>
+    </form>
+  </div>
+
+</div><!-- /modal-overlay -->
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Avatar (Jedi droid) -->
+<div id="sw-avatar" data-context="LifeOS dashboard — help me prioritize tasks and stay organized for everyday life"></div>
+
+<!-- Share widget -->
+<div id="sw-share"></div>
+
+<!-- Scripts — api-client first -->
+<script src="./api-client.js"></script>
+<script src="./avatar-widget.js"></script>
+<script src="./share-widget.js"></script>
+<script src="./notifications.js"></script>
+<script src="./app.js" defer></script>
+
+<script>
+/* Inline helpers needed before app.js defer fires */
+
+// Finance tabs
+function switchFinanceTab(tab) {
+  document.querySelectorAll('.finance-tab').forEach(function(t, i) {
+    t.classList.toggle('active', ['budget','bills','expenses'][i] === tab);
+  });
+  document.querySelectorAll('.finance-panel').forEach(function(p) {
+    p.classList.toggle('active', p.id === 'finance-panel-' + tab);
+  });
+  // Show right FAB based on tab
+  var fab = document.getElementById('fab-finance');
+  if (fab) fab.dataset.modal = tab === 'bills' ? 'modal-add-bill' : tab === 'expenses' ? 'modal-add-expense' : 'modal-add-finance-choice';
+}
+
+// Switch between modals without closing overlay
+function switchModal(id) {
+  document.querySelectorAll('.modal').forEach(function(m) { m.classList.toggle('active', m.id === id); });
+}
+
+// Show/hide FABs when screens change
+var _fabMap = { schedule:'fab-schedule', legal:'fab-legal', finance:'fab-finance', home:'fab-home', work:'fab-work' };
+var _origShowScreen;
+document.addEventListener('DOMContentLoaded', function() {
+  _origShowScreen = window.showScreen;
+  window.showScreen = function(name) {
+    _origShowScreen && _origShowScreen(name);
+    Object.values(_fabMap).forEach(function(fid) {
+      var f = document.getElementById(fid);
+      if (f) f.style.display = 'none';
+    });
+    if (_fabMap[name]) {
+      var f = document.getElementById(_fabMap[name]);
+      if (f) f.style.display = 'flex';
+    }
+    // Update header title
+    var titles = { today:'', schedule:'Schedule', legal:'Legal', finance:'Finance', home:'Home', work:'Work', accounts:'Accounts', settings:'Settings' };
+    var el = document.getElementById('header-screen-title');
+    if (el) el.textContent = titles[name] || '';
+  };
+  // Set today's date as default in date inputs
+  var today = new Date().toISOString().slice(0,10);
+  document.querySelectorAll('input[type="date"]').forEach(function(inp) {
+    if (!inp.value) inp.value = today;
+  });
+});
+</script>
+
+</body>
+</html>

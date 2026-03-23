@@ -248,7 +248,7 @@
       .slice(0, 5);
 
     if (!state.schedule.length) {
-      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>No events yet.<br>Tap + to add your first event.</p></div>';
+      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>No events yet.</p><button class="btn-primary" style="max-width:200px;margin:12px auto 0" onclick="openModal(\'modal-add-event\')">Add First Event</button></div>';
       return;
     }
 
@@ -298,7 +298,7 @@
     var listEl = document.getElementById('legal-list');
     if (!listEl) return;
     if (!state.legal.length) {
-      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⚖️</div><p>No deadlines tracked.<br>Tap + to add a court date, lease renewal, or any legal deadline.</p></div>';
+      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⚖️</div><p>No deadlines tracked.</p><button class="btn-primary" style="max-width:220px;margin:12px auto 0" onclick="openModal(\'modal-add-legal\')">Add Legal Deadline</button></div>';
       return;
     }
     var sorted = state.legal.slice().sort(function(a,b) { return new Date(a.dueDate) - new Date(b.dueDate); });
@@ -522,7 +522,7 @@
           (r > 0 && h > 0 ? '<span class="amount-tag">$' + (h * r).toFixed(2) + '</span>' : '') +
           '<button class="delete-btn" data-type="shift" data-id="' + escHtml(s.id) + '">✕</button>' +
           '</div></div>';
-      }).join('') : '<div class="empty-state"><div class="empty-icon">💼</div><p>No shifts logged yet.<br>Tap + to log your first shift.</p></div>';
+      }).join('') : '<div class="empty-state"><div class="empty-icon">💼</div><p>No shifts logged yet.</p><button class="btn-primary" style="max-width:200px;margin:12px auto 0" onclick="openModal(\'modal-add-shift\')">Log First Shift</button></div>';
     }
   }
 
@@ -569,7 +569,7 @@
       var key = keyEl.value.trim();
       if (key && !key.startsWith('sk-ant-')) { showToast('API key must start with sk-ant-', 'error'); return; }
       state.profile.apiKey = key;
-      if (key) window.SWAvatarApiKey = key;
+      if (key) { window.SWAvatarApiKey = key; try { localStorage.setItem('lifeos_apikey', key); } catch(e) {} }
     }
     saveState();
     renderToday();
@@ -613,6 +613,39 @@
   ════════════════════════════════════════════ */
   function init() {
     loadState();
+    // Apply magic link API key (?key=) if present, merge into state
+    if (window.MagicLink && MagicLink.apply('lifeos_apikey')) {
+      state.profile.apiKey = localStorage.getItem('lifeos_apikey') || state.profile.apiKey;
+      saveState();
+    }
+
+    // First-run demo data — shows value immediately on blank install
+    // #ASSUMPTION: if all 3 arrays are empty this is a fresh install
+    if (!state.schedule.length && !state.legal.length && !state.finance.bills.length) {
+      var t = new Date();
+      var today    = t.toISOString().slice(0,10);
+      var in2days  = new Date(t.getTime() + 2*86400000).toISOString().slice(0,10);
+      var in5days  = new Date(t.getTime() + 5*86400000).toISOString().slice(0,10);
+      var in30days = new Date(t.getTime() + 30*86400000).toISOString().slice(0,10);
+      state.schedule.push(
+        { id: genId(), title: 'Team Standup', date: today,   time: '10:00', category: 'work' },
+        { id: genId(), title: 'Doctor Appointment', date: in5days, time: '14:30', category: 'medical' }
+      );
+      state.legal.push(
+        { id: genId(), title: "Driver's License Renewal", dueDate: in5days,  type: 'Government', notes: 'DMV — bring proof of address' },
+        { id: genId(), title: 'Lease Renewal Decision',   dueDate: in30days, type: 'Lease Renewal', notes: '' }
+      );
+      state.finance.bills.push(
+        { id: genId(), title: 'Internet',  amount: 60,  dueDate: in2days, recurring: true,  paid: false },
+        { id: genId(), title: 'Rent',      amount: 1200, dueDate: in5days, recurring: true, paid: false }
+      );
+      state.finance.budget.income = 3500;
+      state.finance.expenses.push(
+        { id: genId(), title: 'Groceries', amount: 87.50, category: 'Food',      date: today },
+        { id: genId(), title: 'Gas',       amount: 45.00, category: 'Transport', date: today }
+      );
+      saveState();
+    }
 
     // Restore API key to avatar widget
     if (state.profile.apiKey) window.SWAvatarApiKey = state.profile.apiKey;
@@ -684,6 +717,11 @@
 
     // Show today
     showScreen('today');
+    // Welcome banner on first run (no profile name set)
+    if (!state.profile.name) {
+      var banner = document.getElementById('welcome-banner');
+      if (banner) banner.style.display = 'flex';
+    }
     // Fade in
     setTimeout(function() {
       var splash = document.getElementById('splash');

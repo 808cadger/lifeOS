@@ -494,7 +494,7 @@
       var h = (end[0] + end[1]/60) - (start[0] + start[1]/60);
       return sum + Math.max(0, h);
     }, 0);
-    var weekPay = weekHours * (Number(s && s.rate || 0) || rate);
+    var weekPay = weekHours * rate;
 
     var summaryEl = document.getElementById('work-summary');
     if (summaryEl) summaryEl.innerHTML =

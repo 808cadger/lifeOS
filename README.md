@@ -9,7 +9,8 @@ Your personal operating system for everyday life. Schedule, legal deadlines, bil
 **Yes.** Open the link, tap "Add to Home Screen", enter your Claude API key in Settings — done.
 
 → **PWA:** https://cadger808.codeberg.page/lifeos
-→ **Android APK:** https://codeberg.org/cadger808/lifeos/releases
+→ **Android APK:** [Download LifeOS-v1.0.0.apk](https://codeberg.org/cadger808/lifeos/releases/download/v1.0.0/LifeOS-v1.0.0.apk)
+→ **All Releases:** https://codeberg.org/cadger808/lifeos/releases
 
 ## What it does
 

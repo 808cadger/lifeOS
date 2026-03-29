@@ -233,41 +233,90 @@
   }
 
   /* ════════════════════════════════════════════
-     SCHEDULE SCREEN
+     SCHEDULE SCREEN — unified all-area timeline
   ════════════════════════════════════════════ */
+  var _schedTab = 'all';
+
   function renderSchedule() {
     var listEl = document.getElementById('schedule-list');
     if (!listEl) return;
-    var today = new Date().toISOString().slice(0,10);
-    var upcoming = state.schedule
-      .filter(function(e) { return e.date >= today; })
-      .sort(function(a,b) { return (a.date + (a.time||'')).localeCompare(b.date + (b.time||'')); });
-    var past = state.schedule
-      .filter(function(e) { return e.date < today; })
-      .sort(function(a,b) { return b.date.localeCompare(a.date); })
-      .slice(0, 5);
+    var today = new Date().toISOString().slice(0, 10);
 
-    if (!state.schedule.length) {
-      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>No events yet.</p><button class="btn-primary" style="max-width:200px;margin:12px auto 0" onclick="openModal(\'modal-add-event\')">Add First Event</button></div>';
+    // Collect ALL life-area items into one timeline
+    // #ASSUMPTION: items without a valid date are excluded
+    var items = [];
+
+    state.schedule.forEach(function(e) {
+      if (!e.date) return;
+      items.push({ id: e.id, title: e.title, date: e.date, time: e.time || '', source: 'event', icon: '📅', sub: e.category || 'personal', del: 'event' });
+    });
+
+    (state.finance.bills || []).filter(function(b) { return !b.paid; }).forEach(function(b) {
+      if (!b.dueDate) return;
+      items.push({ id: b.id, title: b.title, date: b.dueDate, time: '', source: 'bill', icon: '💵', sub: '$' + Number(b.amount || 0).toFixed(2) + (b.recurring ? ' · recurring' : ''), del: 'bill' });
+    });
+
+    state.legal.forEach(function(d) {
+      if (!d.dueDate) return;
+      items.push({ id: d.id, title: d.title, date: d.dueDate, time: '', source: 'legal', icon: '⚖️', sub: d.type || 'Legal', del: 'legal' });
+    });
+
+    (state.home.maintenance || []).forEach(function(m) {
+      if (!m.intervalDays) return;
+      var nextDate = m.lastDone
+        ? new Date(new Date(m.lastDone).getTime() + m.intervalDays * 86400000).toISOString().slice(0, 10)
+        : today;
+      items.push({ id: m.id, title: m.title, date: nextDate, time: '', source: 'home', icon: '🔧', sub: 'every ' + m.intervalDays + ' days', del: 'maint' });
+    });
+
+    (state.work.shifts || []).forEach(function(s) {
+      if (!s.date) return;
+      items.push({ id: s.id, title: 'Work shift' + (s.notes ? ': ' + s.notes : ''), date: s.date, time: s.startTime || '', source: 'work', icon: '💼', sub: s.startTime ? fmtTime(s.startTime) + (s.endTime ? ' – ' + fmtTime(s.endTime) : '') : '', del: 'shift' });
+    });
+
+    // Filter by active tab
+    var filtered = _schedTab === 'all' ? items : items.filter(function(i) { return i.source === _schedTab; });
+
+    if (!filtered.length) {
+      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>Nothing here yet.</p><button class="btn-primary" style="max-width:200px;margin:12px auto 0" onclick="openModal(\'modal-add-event\')">Add Event</button></div>';
       return;
     }
 
+    var upcoming = filtered.filter(function(i) { return i.date >= today; }).sort(function(a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+    var past     = filtered.filter(function(i) { return i.date < today; }).sort(function(a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);
+
     listEl.innerHTML =
-      (upcoming.length ? '<div class="section-label">Upcoming</div>' + upcoming.map(eventCard).join('') : '') +
-      (past.length ? '<div class="section-label muted">Past (last 5)</div>' + past.map(eventCard).join('') : '');
+      (upcoming.length ? '<div class="section-label">Upcoming</div>' + upcoming.map(unifiedCard).join('') : '') +
+      (past.length    ? '<div class="section-label muted">Past</div>' + past.map(unifiedCard).join('') : '');
   }
 
-  function eventCard(e) {
-    var days = daysUntil(e.date);
-    return '<div class="list-card" data-id="' + escHtml(e.id) + '">' +
+  function unifiedCard(item) {
+    var showUrgency = item.source === 'bill' || item.source === 'legal' || item.source === 'home';
+    var days = daysUntil(item.date);
+    var uc   = showUrgency ? urgencyClass(days) : '';
+    return '<div class="list-card' + (uc ? ' ' + uc : '') + '" data-id="' + escHtml(item.id) + '">' +
       '<div class="list-card-left">' +
-      '<div class="list-card-title">' + escHtml(e.title) + '</div>' +
-      '<div class="list-card-sub">' + fmtDate(e.date) + (e.time ? ' · ' + fmtTime(e.time) : '') + '</div>' +
+      '<div class="list-card-title">' + item.icon + ' ' + escHtml(item.title) + '</div>' +
+      '<div class="list-card-sub">' + fmtDate(item.date) + (item.sub ? ' · ' + escHtml(item.sub) : '') + '</div>' +
       '</div>' +
       '<div class="list-card-right">' +
-      '<span class="event-cat cat-' + escHtml(e.category||'other') + '">' + escHtml(e.category||'other') + '</span>' +
-      '<button class="delete-btn" data-type="event" data-id="' + escHtml(e.id) + '">✕</button>' +
+      '<span class="source-badge src-' + item.source + '">' + item.source + '</span>' +
+      (uc ? '<span class="urgency-badge ' + uc + '">' + urgencyLabel(days) + '</span>' : '') +
+      '<button class="delete-btn" data-type="' + escHtml(item.del) + '" data-id="' + escHtml(item.id) + '">✕</button>' +
       '</div></div>';
+  }
+
+  function switchSchedTab(tab) {
+    _schedTab = tab;
+    document.querySelectorAll('.sched-tab').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    renderSchedule();
+  }
+
+  // kept for backward compat — no longer used in renderSchedule but may be called externally
+  function eventCard(e) {
+    return unifiedCard({ id: e.id, title: e.title, date: e.date, time: e.time || '', source: 'event', icon: '📅', sub: e.category || 'personal', del: 'event' });
   }
 
   function addEvent(data) {
@@ -813,6 +862,12 @@
       });
     }
 
+    // Bill scan file input
+    var billScanInput = document.getElementById('bill-scan-input');
+    if (billScanInput) billScanInput.addEventListener('change', function() {
+      if (this.files && this.files[0]) _processBillImage(this.files[0]);
+    });
+
     // Settings save
     var settingsBtn = document.getElementById('settings-save-btn');
     if (settingsBtn) settingsBtn.addEventListener('click', saveSettings);
@@ -840,9 +895,86 @@
     }
   }
 
+  /* ════════════════════════════════════════════
+     BILL PHOTO SCANNER
+     #ASSUMPTION: Browser supports FileReader + fetch
+     #ASSUMPTION: Claude API key is set in profile
+  ════════════════════════════════════════════ */
+  function scanBill() {
+    var input = document.getElementById('bill-scan-input');
+    if (input) input.click();
+  }
+
+  async function _processBillImage(file) {
+    var apiKey = state.profile.apiKey;
+    if (!apiKey) { showToast('Set Claude API key in Settings first', 'error'); return; }
+
+    var btn = document.getElementById('bill-scan-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Scanning...'; }
+
+    try {
+      var base64 = await new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload  = function(ev) { resolve(ev.target.result.split(',')[1]); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      var mediaType = file.type || 'image/jpeg';
+
+      var res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-calls': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-6',
+          max_tokens: 512,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+              { type: 'text',  text: 'Extract bill information from this image. Return ONLY this JSON (no markdown, no extra text):\n{"company":"<company or service name>","amount":<number or null>,"due_date":"<YYYY-MM-DD or null>","is_recurring":<true or false>}' }
+            ]
+          }]
+        })
+      });
+
+      if (!res.ok) throw new Error('API ' + res.status);
+      var data    = await res.json();
+      var raw     = (data.content && data.content[0] && data.content[0].text) || '';
+      var jsonStr = raw.match(/\{[\s\S]*\}/)?.[0];
+      if (!jsonStr) throw new Error('No data extracted');
+      var bill    = JSON.parse(jsonStr);
+
+      var dueDate = bill.due_date || new Date().toISOString().slice(0, 10);
+      var title   = bill.company  || 'Scanned Bill';
+
+      // Add to Finance
+      addBill({ title: title, amount: bill.amount || 0, dueDate: dueDate, recurring: !!bill.is_recurring });
+
+      // Add to Schedule so it shows in the unified timeline
+      addEvent({ title: '💵 ' + title + ' due', date: dueDate, time: '', category: 'finance' });
+
+      showToast('📷 Bill scanned and added!');
+
+    } catch (err) {
+      showToast('Scan failed: ' + err.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📷 Scan Bill Photo'; }
+      var inp = document.getElementById('bill-scan-input');
+      if (inp) inp.value = '';
+    }
+  }
+
   // Expose openModal globally (used in inline onclick in today screen)
-  window.openModal = openModal;
-  window.showScreen = showScreen;
+  window.openModal      = openModal;
+  window.showScreen     = showScreen;
+  window.switchSchedTab = switchSchedTab;
+  window.scanBill       = scanBill;
 
   document.addEventListener('DOMContentLoaded', init);
 })();

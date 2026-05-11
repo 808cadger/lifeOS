@@ -1,10 +1,35 @@
-# LifeOS — Your Life, Organized
+# LifeOS
+
+[![Release](https://img.shields.io/github/v/release/808cadger/lifeOS?include_prereleases&label=release)](https://github.com/808cadger/lifeOS/releases)
+[![Last commit](https://img.shields.io/github/last-commit/808cadger/lifeOS)](https://github.com/808cadger/lifeOS/commits)
+[![License](https://img.shields.io/github/license/808cadger/lifeOS)](https://github.com/808cadger/lifeOS/blob/HEAD/LICENSE)
+![Platforms](https://img.shields.io/badge/platform-Web%2FPWA%2C%20Desktop%2C%20Android%20project-2563eb)
+
+Personal AI operating system for schedule, bills, reminders, deadlines, and life admin.
+
+## Project Snapshot
+
+| Area | Details |
+|------|---------|
+| Primary use case | Personal AI operating system for schedule, bills, reminders, deadlines, and life admin. |
+| Platforms | Web/PWA, Desktop, Android project |
+| Core stack | JavaScript, Capacitor, Electron, PWA |
+| Review first | `www/index.html`, `index.html`, `capacitor.config.json`, `package.json` |
 
 ## Download Links
 
-- **iOS / iPhone:** Open the PWA in Safari: [LifeOS iOS install](https://808cadger.github.io/lifeOS/) and choose **Share -> Add to Home Screen**.
-- **Android:** Download the latest APK from GitHub Releases: [LifeOS Android releases](https://github.com/808cadger/lifeOS/releases/latest).
-- **Source download:** [Download the GitHub source ZIP](https://github.com/808cadger/lifeOS/archive/refs/heads/main.zip).
+| Platform | Link |
+|----------|------|
+| iOS / iPhone | [Open the PWA in Safari](https://808cadger.github.io/lifeOS/) and choose **Share -> Add to Home Screen** |
+| Android | [Download the latest APK from GitHub Releases](https://github.com/808cadger/lifeOS/releases/latest) |
+| Source | [Download the GitHub source ZIP](https://github.com/808cadger/lifeOS/archive/refs/heads/main.zip) |
+| Repository | [View on GitHub](https://github.com/808cadger/lifeOS) |
+
+## Why This Repo Is Worth Reviewing
+
+- Organizes personal operations into one app surface.
+- PWA and desktop paths support daily repeated use.
+- Local-first browser storage model keeps setup simple.
 
 
 <!-- INSTALL-START -->

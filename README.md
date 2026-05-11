@@ -1,5 +1,12 @@
 # LifeOS — Your Life, Organized
 
+## Download Links
+
+- **iOS / iPhone:** Open the PWA in Safari: [LifeOS iOS install](https://808cadger.github.io/lifeOS/) and choose **Share -> Add to Home Screen**.
+- **Android:** Download the latest APK from GitHub Releases: [LifeOS Android releases](https://github.com/808cadger/lifeOS/releases/latest).
+- **Source download:** [Download the GitHub source ZIP](https://github.com/808cadger/lifeOS/archive/refs/heads/main.zip).
+
+
 <!-- INSTALL-START -->
 ## Install and run
 
